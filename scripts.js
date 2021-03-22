@@ -13,9 +13,25 @@ const lineType = {
     'diagonalL' : 'diagonalLineL'
 };
 
-const player = (name, piece) => {
-    this.active = false;
-    return {name, piece, active}; //0 or 1
+const player = (elementIndex, piece) => {
+    const setActive = (active) => {
+        if (active) {
+            playerNamesEl[elementIndex].classList.add('activePlayer');
+        } else {
+            playerNamesEl[elementIndex].classList.remove('activePlayer');
+        }
+    };
+    const isActive = () => {
+        return playerNamesEl[elementIndex].classList.contains('activePlayer');
+    };
+    const getName = () => {
+        let playerName = playerNamesEl[elementIndex].value;
+        if (playerName === '') {
+            playerName = `Player ${elementIndex + 1}`;
+        }
+        return playerName;
+    };
+    return { elementIndex, piece, setActive, isActive, getName}; //0 or 1
 };
 
 const coord = (row, col) => {
@@ -174,26 +190,22 @@ const gameBoard = () => {
 };
 
 const ticTacToe = () => {
-    this.players = [player('player1', 'X'), player('player2', 'O')];
+    this.players = [];
     this.boardHistory = [];
     this.gameboard = gameBoard();
-    this.started  = false;
+    this.moveDone  = false;
     this.finished = false;
     const newGame = () => {
+
+        //to change names
+        this.moveDone = false;
+        toggleInputs(true);
+
+        this.players = getPlayers();
+
         //randomize the first player
         const num = Math.floor(Math.random() * 2);
-        this.players[num].active = true;
-        changeActivePlayer();
-
-        //put the object names
-        let i = 0;
-        this.players.forEach(
-            player => {
-                playerNamesEl[i].innerText = player.name;
-                playerPiecesEl[i].innerText = player.piece;
-                i++;
-            }
-        );
+        changeActivePlayer(num);
 
         //clear the winning line if exists
         for (let i = 0; i < squares.length; i++) {
@@ -204,35 +216,37 @@ const ticTacToe = () => {
 
         this.boardHistory.length = 0;
         this.gameboard.clearBoard();
-        this.started  = true;
         this.finished = false;
 
         boardHistoryEl.innerHTML = '';
 
     };
-    const activePlayer = () => {
+    const getActivePlayer = () => {
         let activePlayer = null;
         this.players.forEach(player => {
-            if (player.active) {
+            if (player.isActive()) {
                 activePlayer = player;
             }
-        })
+        });
         return activePlayer;
     };
-    const changeActivePlayer = () => {
-        for (let i = 0; i < players.length; i++) {
-            if (players[i].name === activePlayer().name) {
-                players[i].active = false;
-                playerNamesEl[i].classList.remove('activePlayer');
-                //next player in the list is the active player
-                let newActivePlayerIndex = 0;
-                if ((i + 1) < players.length) {
-                    newActivePlayerIndex = i + 1;
-                }
-                players[newActivePlayerIndex].active = true;
-                playerNamesEl[newActivePlayerIndex].classList.add('activePlayer');
-                return;
-            }
+    const getPlayers = () => {
+        const players = [];
+        for (let i = 0; i < playerNamesEl.length; i++) {
+            players.push(player(i, playerPiecesEl[i].innerText));
+        }
+        return players;
+    };
+    const changeActivePlayer = (index) => {
+        for (let i = 0; i < this.players.length; i++) {
+            this.players[i].setActive(i === index);
+        }
+    };
+    const getNextPlayer = (previousIndex) => {
+        if ((previousIndex + 1) < this.players.length) {
+            return this.players[previousIndex + 1];
+        } else {
+            return players[0];
         }
     };
     const addPiece = (piece, row, column) => {
@@ -241,9 +255,18 @@ const ticTacToe = () => {
             result = this.gameboard.addPiece(piece, row, column);
 
             if (result) {
+
+                //get info about the players and block the input names
+                if (!this.moveDone) {
+                    toggleInputs(false);
+                    this.moveDone = true;
+                }
+
+                const activePlayer = getActivePlayer();
+
                 const histSpan = document.createElement('span');
                 histSpan.classList.add('historyMove');
-                histSpan.innerText = `${new Date().toLocaleTimeString('en-GB')}: ${activePlayer().name} puts piece ${activePlayer().piece}` +
+                histSpan.innerText = `${new Date().toLocaleTimeString('en-GB')}: ${activePlayer.getName()} puts piece ${activePlayer.piece}` +
                     ` on row:${parseInt(row) + 1} col:${parseInt(column) + 1}`;
                 histSpan.setAttribute('data-index', historyMoves.length);
                 histSpan.addEventListener('mouseover', () => {
@@ -260,7 +283,7 @@ const ticTacToe = () => {
                     this.gameboard.addWinningLine(wonLine);
                     const histSpan = document.createElement('span');
                     histSpan.classList.add('historyFinish');
-                    histSpan.innerText = `${new Date().toLocaleTimeString('en-GB')}: Game won by ${activePlayer().name}`;
+                    histSpan.innerText = `${new Date().toLocaleTimeString('en-GB')}: Game won by ${activePlayer.getName()}`;
                     boardHistoryEl.appendChild(histSpan);
                 } else if (this.gameboard.gameFinished()) {
                     //if no line with all squares occupied
@@ -276,7 +299,8 @@ const ticTacToe = () => {
 
                 if (!this.finished) {
                     //only changes player if has success adding piece
-                    changeActivePlayer();
+                    activePlayer.setActive(false);
+                    getNextPlayer(activePlayer.elementIndex).setActive(true);
                 }
             }
         }
@@ -293,8 +317,13 @@ const ticTacToe = () => {
             newPieces[z].push(squares[i].innerText);
         }
         return newPieces;
-    }
-    return { players, boardHistory, newGame, started, finished, activePlayer, addPiece, gameboard }
+    };
+    const toggleInputs = (enabled) => {
+        for (let i = 0; i < playerNamesEl.length; i++) {
+            playerNamesEl[i].readOnly = !enabled;
+        }
+    };
+    return { boardHistory, newGame, finished, getActivePlayer, addPiece, gameboard, getPlayers }
 };
 
 window.onload = () => {
@@ -313,7 +342,7 @@ window.onload = () => {
 
     for (let i = 0; i < squares.length; i++) {
       squares[i].addEventListener('click', () => {
-          game.addPiece(game.activePlayer().piece, squares[i].dataset.row, squares[i].dataset.col);
+          game.addPiece(game.getActivePlayer().piece, squares[i].dataset.row, squares[i].dataset.col);
       });
     }
 
@@ -326,6 +355,12 @@ window.onload = () => {
         game.gameboard.addPieces(pieces);
         game.gameboard.addWinningLine(wonLine);
     });
+
+    for (let i = 0; i < playerNamesEl.length; i++) {
+        playerNamesEl[i].addEventListener('onchange', () => {
+            game.p
+        });
+    }
 
 };
 

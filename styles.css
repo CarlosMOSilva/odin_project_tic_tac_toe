@@ -26,12 +26,21 @@
     text-transform: uppercase;
 }
 
+.playerName  {
+    width: 80%;
+    font-family: Consolas sans-serif;
+}
+
+.playerName:read-only  {
+    border: none;
+}
+
 .pieceType, .playerName  {
     margin: 5px;
 }
 
 .activePlayer {
-    text-decoration: underline;
+    font-weight: bold;
 }
 
 #allBoard {
@@ -131,6 +140,7 @@
 
 #newGameBtn {
     margin-top: 20px;
+    margin-bottom: 20px;
 }
 
 .historyFinish {
