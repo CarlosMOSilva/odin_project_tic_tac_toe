@@ -4,6 +4,7 @@ let playerPiecesEl;
 let boardHistoryEl;
 let historyMoves;
 let gameBoardEl;
+let wonLine;
 
 const lineType = {
     'horizontal': 'horizontalLine',
@@ -35,9 +36,9 @@ const winningLine = (coords, lineType) => {
 
 const gameBoard = () => {
     this.board = [['', '', ''], ['', '', ''], ['', '', '']];
-    const addPiece = (piece, row, column) => {
+    const addPiece = (piece, row, column, overwrite = false) => {
         let val = this.board[row][column];
-        if (val === '') {
+        if (overwrite || val === '') {
             this.board[row][column] = piece;
             drawBoard();
             return true;
@@ -57,6 +58,27 @@ const gameBoard = () => {
             }
         }
         return true;
+    };
+    const addPieces = (pieces) => {
+        for (let i = 0; i < pieces.length; i++) {
+            for (let z = 0; z < pieces[i].length; z++) {
+                addPiece(pieces[i][z], i, z, true);
+            }
+        }
+    };
+    const addWinningLine = (wonLine) => {
+        for (let i = 0; i < squares.length; i++) {
+            if (wonLine.includes(squares[i].dataset.row, squares[i].dataset.col)) {
+                squares[i].classList.add(wonLine.lineType);
+            }
+        }
+    };
+    const removeWinningLine = (wonLine) => {
+        for (let i = 0; i < squares.length; i++) {
+            if (wonLine.includes(squares[i].dataset.row, squares[i].dataset.col)) {
+                squares[i].classList.remove(wonLine.lineType);
+            }
+        }
     };
     const drawBoard = () => {
         let i = 0;
@@ -148,7 +170,7 @@ const gameBoard = () => {
 
         return null;
     }
-    return {board, addPiece, gameFinished, clearBoard, checkLines};
+    return {board, addPiece, addPieces, gameFinished, clearBoard, checkLines, addWinningLine, removeWinningLine};
 };
 
 const ticTacToe = () => {
@@ -225,26 +247,17 @@ const ticTacToe = () => {
                     ` on row:${parseInt(row) + 1} col:${parseInt(column) + 1}`;
                 histSpan.setAttribute('data-index', historyMoves.length);
                 histSpan.addEventListener('mouseover', () => {
-                    gameBoardEl.innerHTML = '';
-                    const squares = this.boardHistory[parseInt(histSpan.dataset.index)];
-                    for (let i = 0; i < squares.length; i++) {
-                        gameBoardEl.appendChild(squares[i]);
-                        squares[i].addEventListener('click', () => {
-                            addPiece(activePlayer().piece, squares[i].dataset.row, squares[i].dataset.col);
-                        });
-                    }
+                    const pieces = this.boardHistory[parseInt(histSpan.dataset.index)];
+                    this.gameboard.addPieces(pieces);
+                    this.gameboard.removeWinningLine(wonLine);
                 });
                 boardHistoryEl.appendChild(histSpan);
 
                 //check winning condition
-                const wonLine = this.gameboard.checkLines();
+                wonLine = this.gameboard.checkLines();
                 if (wonLine !== null) {
                     this.finished = true;
-                    for (let i = 0; i < squares.length; i++) {
-                        if (wonLine.includes(squares[i].dataset.row, squares[i].dataset.col)) {
-                            squares[i].classList.add(wonLine.lineType);
-                        }
-                    }
+                    this.gameboard.addWinningLine(wonLine);
                     const histSpan = document.createElement('span');
                     histSpan.classList.add('historyFinish');
                     histSpan.innerText = `${new Date().toLocaleTimeString('en-GB')}: Game won by ${activePlayer().name}`;
@@ -259,11 +272,7 @@ const ticTacToe = () => {
                 }
 
                 //fill history moves array
-                const htmlSquares = [];
-                for (let i= 0; i < squares.length; i++) {
-                    htmlSquares.push(squares[i].cloneNode(true));
-                }
-                this.boardHistory.push(htmlSquares);
+                this.boardHistory.push(createNewPieces());
 
                 if (!this.finished) {
                     //only changes player if has success adding piece
@@ -273,7 +282,19 @@ const ticTacToe = () => {
         }
         return result;
     };
-    return { players, boardHistory, newGame, started, finished, activePlayer, addPiece }
+    const createNewPieces = () => {
+        const newPieces = []
+        let z = -1;
+        for (let i = 0; i < squares.length; i++) {
+            if (i % 3 === 0) {
+                z++;
+                newPieces.push([]);
+            }
+            newPieces[z].push(squares[i].innerText);
+        }
+        return newPieces;
+    }
+    return { players, boardHistory, newGame, started, finished, activePlayer, addPiece, gameboard }
 };
 
 window.onload = () => {
@@ -301,15 +322,9 @@ window.onload = () => {
     });
 
     boardHistoryEl.addEventListener('mouseleave', () => {
-        gameBoardEl.innerHTML = '';
-        const squares = game.boardHistory[game.boardHistory.length - 1];
-        for (let i = 0; i < squares.length; i++) {
-            const clone = squares[i].cloneNode(true);
-            gameBoardEl.appendChild(clone);
-            clone.addEventListener('click', () => {
-                game.addPiece(game.activePlayer().piece, squares[i].dataset.row, squares[i].dataset.col);
-            });
-        }
+        const pieces = game.boardHistory[game.boardHistory.length - 1];
+        game.gameboard.addPieces(pieces);
+        game.gameboard.addWinningLine(wonLine);
     });
 
 };
